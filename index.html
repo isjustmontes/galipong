@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Galipong</title>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --neon: #39ff88;
+    --neon-dim: rgba(57, 255, 136, 0.35);
+    --accent: #4cc9f0;
+    --text: #e8fff3;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: radial-gradient(circle at 50% 20%, #16203a 0%, var(--bg) 70%);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    user-select: none;
+  }
+  h1 {
+    margin: 0;
+    letter-spacing: 0.35em;
+    font-size: 2rem;
+    text-transform: uppercase;
+    color: var(--neon);
+    text-shadow: 0 0 12px var(--neon-dim), 0 0 30px var(--neon-dim);
+  }
+  #tourneyBar {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: .78rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    opacity: .9;
+  }
+  #tourneyBar.hidden { display: none; }
+  #tourneyInfo { color: var(--text); }
+  #tourneyDots { display: flex; gap: 6px; }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    display: inline-block;
+  }
+  .dot.current { border-color: var(--neon); box-shadow: 0 0 6px var(--neon-dim); }
+  .dot.done { background: var(--neon); border-color: var(--neon); box-shadow: 0 0 8px var(--neon-dim); }
+  #tourneyBest { color: var(--accent); opacity: .8; }
+  #scoreboard {
+    display: flex;
+    gap: 3rem;
+    align-items: baseline;
+    font-variant-numeric: tabular-nums;
+  }
+  .score {
+    font-size: 2.6rem;
+    font-weight: 700;
+    min-width: 3ch;
+    text-align: center;
+  }
+  #scoreP1 { color: var(--neon); text-shadow: 0 0 10px var(--neon-dim); }
+  #scoreP2 { color: var(--accent); text-shadow: 0 0 10px rgba(76,201,240,.35); }
+  #vs { opacity: 0.5; font-size: 1.1rem; letter-spacing: .2em; }
+  #wrap {
+    position: relative;
+    padding: 10px;
+    border: 2px solid var(--neon-dim);
+    border-radius: 12px;
+    box-shadow: 0 0 25px rgba(57,255,136,.15), inset 0 0 30px rgba(0,0,0,.6);
+    background: #05070d;
+  }
+  canvas { display: block; border-radius: 6px; }
+  #overlay {
+    position: absolute;
+    inset: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: rgba(5, 7, 13, 0.82);
+    border-radius: 6px;
+    text-align: center;
+    backdrop-filter: blur(2px);
+  }
+  #overlay.hidden { display: none; }
+  #overlayTitle {
+    font-size: 1.8rem;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--neon);
+    text-shadow: 0 0 14px var(--neon-dim);
+    margin: 0;
+  }
+  #overlaySub { opacity: .85; margin: 0; }
+  .keys {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 4px 18px;
+    font-size: .9rem;
+    opacity: .9;
+  }
+  kbd {
+    background: #131a2b;
+    border: 1px solid #2b3a55;
+    border-bottom-width: 3px;
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-family: inherit;
+    color: var(--neon);
+  }
+  button {
+    margin-top: 6px;
+    padding: 10px 26px;
+    font-size: 1rem;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: #04120a;
+    background: var(--neon);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    box-shadow: 0 0 16px var(--neon-dim);
+    transition: transform .1s ease, box-shadow .1s ease;
+  }
+  button:hover { transform: translateY(-1px); box-shadow: 0 0 24px var(--neon); }
+  button:active { transform: translateY(1px); }
+  #help {
+    font-size: .85rem;
+    opacity: .6;
+    text-align: center;
+    max-width: 640px;
+    line-height: 1.5;
+  }
+  #labels {
+    display: flex;
+    justify-content: space-between;
+    width: min(820px, 92vw);
+    font-size: .8rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    opacity: .75;
+  }
+  #labelP1 { color: var(--neon); }
+  #labelP2 { color: var(--accent); text-align: right; }
+  .modeRow {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .modeBtn {
+    margin-top: 0;
+    background: transparent;
+    color: var(--text);
+    border: 2px solid rgba(255,255,255,.25);
+    box-shadow: none;
+    padding: 8px 16px;
+    font-size: .85rem;
+    letter-spacing: .1em;
+  }
+  .modeBtn:hover { transform: none; box-shadow: none; border-color: var(--neon); color: var(--neon); }
+  .modeBtn.active {
+    border-color: var(--neon);
+    color: var(--neon);
+    box-shadow: 0 0 12px var(--neon-dim);
+  }
+  footer {
+    font-size: .8rem;
+    opacity: .55;
+    padding-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+  <h1>Galipong</h1>
+
+  <div id="tourneyBar" class="hidden">
+    <span id="tourneyInfo"></span>
+    <span id="tourneyDots"></span>
+    <span id="tourneyBest"></span>
+  </div>
+
+  <div id="labels">
+    <span id="labelP1">Jugador 1</span>
+    <span id="labelP2">CPU</span>
+  </div>
+
+  <div id="scoreboard">
+    <div class="score" id="scoreP1">0</div>
+    <div id="vs">VS CPU</div>
+    <div class="score" id="scoreP2">0</div>
+  </div>
+
+  <div id="wrap">
+    <canvas id="game" width="800" height="480"></canvas>
+    <div id="overlay">
+      <p id="overlayTitle">Galipong</p>
+      <p id="overlaySub">Primer jugador en llegar a 7 gana</p>
+      <div class="keys" id="keysHelp">
+        <span>Jugador 1</span><span><kbd>W</kbd> / <kbd>S</kbd></span>
+        <span id="keyP2Label">CPU</span><span id="keyP2">Automática</span>
+      </div>
+      <div class="modeRow">
+        <button class="modeBtn active" id="modeCpu">1 Jugador</button>
+        <button class="modeBtn" id="mode2p">2 Jugadores</button>
+        <button class="modeBtn" id="modeTourney">Campeonato</button>
+      </div>
+      <button id="startBtn">Jugar</button>
+    </div>
+  </div>
+
+  <p id="help">
+    <kbd>P</kbd> Pausa &nbsp;&bull;&nbsp; <kbd>R</kbd> Reiniciar &nbsp;&bull;&nbsp;
+    <kbd>M</kbd> Silenciar &nbsp;&bull;&nbsp; <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> Modos
+  </p>
+
+  <footer>Creado por @isjustmontes</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const scoreP1El = document.getElementById("scoreP1");
+  const scoreP2El = document.getElementById("scoreP2");
+  const overlay = document.getElementById("overlay");
+  const overlayTitle = document.getElementById("overlayTitle");
+  const overlaySub = document.getElementById("overlaySub");
+  const startBtn = document.getElementById("startBtn");
+  const labelP2 = document.getElementById("labelP2");
+  const vsEl = document.getElementById("vs");
+  const keyP2Label = document.getElementById("keyP2Label");
+  const keyP2 = document.getElementById("keyP2");
+  const modeCpuBtn = document.getElementById("modeCpu");
+  const mode2pBtn = document.getElementById("mode2p");
+  const modeTourneyBtn = document.getElementById("modeTourney");
+  const tourneyBar = document.getElementById("tourneyBar");
+  const tourneyInfo = document.getElementById("tourneyInfo");
+  const tourneyDots = document.getElementById("tourneyDots");
+  const tourneyBest = document.getElementById("tourneyBest");
+
+  const WIN_SCORE = 7;
+  const TOURNEY_WIN = 5;
+  const PADDLE_W = 12;
+  const PADDLE_H = 80;
+  const BALL_R = 8;
+  const PADDLE_SPEED = 6.5;
+  const BALL_MAX_SPEED = 12;
+  const FRAME_MS = 1000 / 60;
+  const TRAIL_MAX = 12;
+  const BEST_KEY = "galipong_tourney_best";
+
+  const ROUNDS = [
+    { name: "Novato",      desc: "CPU lento",              ai: 3.4, ball: 5.4, pScale: 1.0  },
+    { name: "Profesional", desc: "CPU ágil",               ai: 4.8, ball: 5.8, pScale: 1.0  },
+    { name: "Turbo",       desc: "Bola veloz",             ai: 5.3, ball: 6.8, pScale: 0.9  },
+    { name: "Espejo",      desc: "Pala CPU reducida",      ai: 6.8, ball: 6.0, pScale: 0.55 },
+    { name: "Final",       desc: "CPU al máximo",          ai: 7.4, ball: 7.4, pScale: 0.8  }
+  ];
+
+  const state = {
+    running: false,
+    paused: false,
+    gameOver: false,
+    muted: false,
+    mode: "cpu",
+    score: [0, 0],
+    p1: { x: 30, y: H / 2 - PADDLE_H / 2, w: PADDLE_W, h: PADDLE_H },
+    p2: { x: W - 30 - PADDLE_W, y: H / 2 - PADDLE_H / 2, w: PADDLE_W, h: PADDLE_H },
+    ball: { x: W / 2, y: H / 2, vx: 0, vy: 0 },
+    keys: Object.create(null),
+    tourney: { active: false, round: 0, waiting: false, finished: false, champion: false, best: 0 }
+  };
+
+  const trailBuf = new Float32Array(TRAIL_MAX * 2);
+  let trailHead = 0;
+  let trailCount = 0;
+  const TRAIL_ALPHA = [];
+  for (let i = 0; i < TRAIL_MAX; i++) TRAIL_ALPHA[i] = (((i + 1) / TRAIL_MAX) * 0.4).toFixed(3);
+
+  function pushTrail(x, y) {
+    trailBuf[trailHead] = x;
+    trailBuf[trailHead + 1] = y;
+    trailHead = (trailHead + 2) % (TRAIL_MAX * 2);
+    if (trailCount < TRAIL_MAX) trailCount++;
+  }
+
+  function clearTrail() { trailHead = 0; trailCount = 0; }
+
+  const court = document.createElement("canvas");
+  court.width = W;
+  court.height = H;
+  (() => {
+    const c = court.getContext("2d");
+    c.fillStyle = "#05070d";
+    c.fillRect(0, 0, W, H);
+    c.strokeStyle = "rgba(255,255,255,0.15)";
+    c.lineWidth = 3;
+    c.setLineDash([12, 16]);
+    c.beginPath();
+    c.moveTo(W / 2, 0);
+    c.lineTo(W / 2, H);
+    c.stroke();
+    c.setLineDash([]);
+    c.strokeStyle = "rgba(57,255,136,0.25)";
+    c.lineWidth = 2;
+    c.strokeRect(1, 1, W - 2, H - 2);
+  })();
+
+  const SPRITE_PAD = 26;
+  const SPRITE_W = PADDLE_W + SPRITE_PAD * 2;
+  const SPRITE_H = PADDLE_H + SPRITE_PAD * 2;
+  const BALL_SPRITE = 56;
+
+  function makePaddleSprite(color, glow) {
+    const c = document.createElement("canvas");
+    c.width = SPRITE_W;
+    c.height = SPRITE_H;
+    const g = c.getContext("2d");
+    g.shadowColor = glow;
+    g.shadowBlur = 18;
+    g.fillStyle = color;
+    g.fillRect(SPRITE_PAD, SPRITE_PAD, PADDLE_W, PADDLE_H);
+    return c;
+  }
+
+  const spriteP1 = makePaddleSprite("#39ff88", "rgba(57,255,136,0.8)");
+  const spriteP2 = makePaddleSprite("#4cc9f0", "rgba(76,201,240,0.8)");
+  const spriteBall = (() => {
+    const c = document.createElement("canvas");
+    c.width = BALL_SPRITE;
+    c.height = BALL_SPRITE;
+    const g = c.getContext("2d");
+    g.shadowColor = "#ffffff";
+    g.shadowBlur = 20;
+    g.fillStyle = "#ffffff";
+    g.beginPath();
+    g.arc(BALL_SPRITE / 2, BALL_SPRITE / 2, BALL_R, 0, Math.PI * 2);
+    g.fill();
+    return c;
+  })();
+
+  let audioCtx = null;
+
+  function beep(freq, dur, vol) {
+    if (state.muted) return;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "square";
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+      o.connect(g).connect(audioCtx.destination);
+      o.start();
+      o.stop(audioCtx.currentTime + dur);
+    } catch (e) { /* audio no disponible */ }
+  }
+
+  function winScore() { return state.tourney.active ? TOURNEY_WIN : WIN_SCORE; }
+
+  function currentRound() {
+    const t = state.tourney;
+    return ROUNDS[Math.min(t.round, ROUNDS.length - 1)];
+  }
+
+  function ballStartSpeed() { return state.tourney.active ? currentRound().ball : 5.5; }
+
+  function resetBall(direction) {
+    const b = state.ball;
+    b.x = W / 2;
+    b.y = H / 2;
+    const angle = (Math.random() * 0.6 - 0.3);
+    const speed = ballStartSpeed();
+    b.vx = Math.cos(angle) * speed * direction;
+    b.vy = Math.sin(angle) * speed;
+    clearTrail();
+  }
+
+  function resetGame() {
+    const t = state.tourney;
+    state.score[0] = 0;
+    state.score[1] = 0;
+    if (t.active) state.p2.h = PADDLE_H * currentRound().pScale;
+    else state.p2.h = PADDLE_H;
+    state.p1.h = PADDLE_H;
+    state.p1.y = H / 2 - state.p1.h / 2;
+    state.p2.y = H / 2 - state.p2.h / 2;
+    state.gameOver = false;
+    state.paused = false;
+    updateScore();
+    resetBall(Math.random() < 0.5 ? -1 : 1);
+  }
+
+  function updateScore() {
+    scoreP1El.textContent = state.score[0];
+    scoreP2El.textContent = state.score[1];
+  }
+
+  function showOverlay(title, sub, btnText) {
+    overlayTitle.textContent = title;
+    overlaySub.textContent = sub;
+    startBtn.textContent = btnText;
+    overlay.classList.remove("hidden");
+  }
+
+  function hideOverlay() {
+    overlay.classList.add("hidden");
+  }
+
+  function loadBest() {
+    try {
+      const v = parseInt(localStorage.getItem(BEST_KEY), 10);
+      state.tourney.best = (v > 0 && v <= ROUNDS.length) ? v : 0;
+    } catch (e) { state.tourney.best = 0; }
+  }
+
+  function saveBest(n) {
+    const t = state.tourney;
+    if (n <= t.best) return;
+    t.best = n;
+    try { localStorage.setItem(BEST_KEY, String(n)); } catch (e) { /* sin storage */ }
+  }
+
+  function updateTourneyBar() {
+    const t = state.tourney;
+    if (!t.active) {
+      tourneyBar.classList.add("hidden");
+      return;
+    }
+    tourneyBar.classList.remove("hidden");
+    const cleared = Math.min(t.round, ROUNDS.length);
+    if (t.finished && t.champion) {
+      tourneyInfo.textContent = "¡Campeón!";
+    } else if (t.finished) {
+      tourneyInfo.textContent = "Eliminado en la ronda " + (t.round + 1) + "/" + ROUNDS.length;
+    } else {
+      const r = currentRound();
+      tourneyInfo.textContent = "Ronda " + (t.round + 1) + "/" + ROUNDS.length + " · " + r.name + " (" + r.desc + ")";
+    }
+    let dots = "";
+    for (let i = 0; i < ROUNDS.length; i++) {
+      const cls = i < cleared ? "dot done" : (i === t.round && !t.finished ? "dot current" : "dot");
+      dots += '<span class="' + cls + '"></span>';
+    }
+    tourneyDots.innerHTML = dots;
+    tourneyBest.textContent = t.best > 0 ? "Récord: " + t.best + "/" + ROUNDS.length : "";
+  }
+
+  function applyMode() {
+    const m = state.mode;
+    modeCpuBtn.classList.toggle("active", m === "cpu");
+    mode2pBtn.classList.toggle("active", m === "2p");
+    modeTourneyBtn.classList.toggle("active", m === "tourney");
+    const vsCpu = m !== "2p";
+    labelP2.textContent = vsCpu ? "CPU" : "Jugador 2";
+    vsEl.textContent = vsCpu ? "VS CPU" : "VS";
+    keyP2Label.textContent = vsCpu ? "CPU" : "Jugador 2";
+    keyP2.innerHTML = vsCpu ? "Automática" : '<kbd>&uarr;</kbd> / <kbd>&darr;</kbd>';
+    if (overlay.classList.contains("hidden")) return;
+    if (m === "tourney") {
+      overlaySub.textContent = "Supera las 5 rondas contra la CPU";
+    } else {
+      overlaySub.textContent = "Primer jugador en llegar a " + WIN_SCORE + " gana";
+    }
+  }
+
+  function resetTourneyData() {
+    state.tourney.round = 0;
+    state.tourney.waiting = false;
+    state.tourney.finished = false;
+    state.tourney.champion = false;
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    state.tourney.active = mode === "tourney";
+    resetTourneyData();
+    applyMode();
+    updateTourneyBar();
+    if (state.running || state.gameOver || state.paused) { resetGame(); startGame(); }
+  }
+
+  function aiSpeed() {
+    return state.tourney.active ? currentRound().ai : PADDLE_SPEED - 1.2;
+  }
+
+  function reflectY(y) {
+    y %= 2 * H;
+    if (y < 0) y += 2 * H;
+    if (y > H) y = 2 * H - y;
+    return y;
+  }
+
+  function aiUpdate(f) {
+    const p = state.p2;
+    const b = state.ball;
+    const center = p.y + p.h / 2;
+    let target;
+    if (b.vx > 0) {
+      const t = (p.x + p.w / 2 - b.x) / b.vx;
+      const pred = reflectY(b.y + b.vy * t);
+      const margin = BALL_R + p.h / 2;
+      target = pred < margin ? margin : (pred > H - margin ? H - margin : pred);
+    } else {
+      target = H / 2;
+    }
+    const diff = target - center;
+    if (Math.abs(diff) > 10) {
+      const step = Math.min(Math.abs(diff), aiSpeed()) * f;
+      p.y += diff > 0 ? step : -step;
+    }
+    clampPaddle(p);
+  }
+
+  function startGame() {
+    const t = state.tourney;
+    if (t.active) { t.waiting = false; t.finished = false; t.champion = false; }
+    if (!state.running || state.gameOver) resetGame();
+    state.running = true;
+    state.paused = false;
+    updateTourneyBar();
+    hideOverlay();
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  }
+
+  function startTourneyMatch() {
+    const t = state.tourney;
+    if (t.finished) t.round = 0;
+    t.waiting = false;
+    t.finished = false;
+    t.champion = false;
+    startGame();
+  }
+
+  function togglePause() {
+    if (!state.running || state.gameOver) return;
+    state.paused = !state.paused;
+    if (state.paused) showOverlay("Pausa", "Pulsa P para continuar", "Continuar");
+    else hideOverlay();
+  }
+
+  function endGame(winnerIdx) {
+    const t = state.tourney;
+    state.gameOver = true;
+    state.running = false;
+    beep(180, 0.3, 0.12);
+    setTimeout(() => beep(240, 0.3, 0.12), 150);
+    setTimeout(() => beep(320, 0.45, 0.12), 300);
+
+    if (t.active) {
+      const scoreTxt = "Marcador: " + state.score[0] + " - " + state.score[1];
+      if (winnerIdx === 0) {
+        t.round = Math.min(t.round + 1, ROUNDS.length);
+        saveBest(t.round);
+        if (t.round >= ROUNDS.length) {
+          t.finished = true;
+          t.champion = true;
+          showOverlay("¡Campeón!", "Has ganado las 5 rondas. " + scoreTxt, "Jugar otra vez");
+        } else {
+          t.waiting = true;
+          const nxt = currentRound();
+          showOverlay("¡Ronda superada!", "Siguiente: " + (t.round + 1) + "/" + ROUNDS.length + " · " + nxt.name + " — " + nxt.desc, "Siguiente ronda");
+        }
+      } else {
+        saveBest(t.round);
+        t.finished = true;
+        t.champion = false;
+        showOverlay("Torneo terminado", "Caíste en la ronda " + (t.round + 1) + "/" + ROUNDS.length + ". " + scoreTxt, "Reintentar");
+      }
+      updateTourneyBar();
+      return;
+    }
+
+    const name = winnerIdx === 0 ? "¡Jugador 1 gana!" : (state.mode === "cpu" ? "¡La CPU gana!" : "¡Jugador 2 gana!");
+    showOverlay(name, "Marcador final: " + state.score[0] + " - " + state.score[1], "Revancha");
+  }
+
+  function clampPaddle(p) {
+    if (p.y < 0) p.y = 0;
+    else if (p.y > H - p.h) p.y = H - p.h;
+  }
+
+  function overlaps(b, p) {
+    return b.y + BALL_R >= p.y && b.y - BALL_R <= p.y + p.h &&
+           b.x + BALL_R >= p.x && b.x - BALL_R <= p.x + p.w;
+  }
+
+  function bounceOffPaddle(b, p, dir) {
+    const hitPos = (b.y - (p.y + p.h / 2)) / (p.h / 2);
+    const angle = hitPos * 0.75;
+    const speed = Math.min(Math.sqrt(b.vx * b.vx + b.vy * b.vy) * 1.06, BALL_MAX_SPEED);
+    b.vx = Math.cos(angle) * speed * dir;
+    b.vy = Math.sin(angle) * speed;
+    b.x = dir > 0 ? p.x + p.w + BALL_R : p.x - BALL_R;
+    beep(660, 0.06, 0.08);
+  }
+
+  function update(dt) {
+    if (!state.running || state.paused || state.gameOver) return;
+
+    const f = dt > FRAME_MS * 2.5 ? 2.5 : dt / FRAME_MS;
+    const k = state.keys;
+    const p1 = state.p1;
+    const p2 = state.p2;
+    const b = state.ball;
+
+    if (k["w"]) p1.y -= PADDLE_SPEED * f;
+    if (k["s"]) p1.y += PADDLE_SPEED * f;
+    clampPaddle(p1);
+
+    if (state.mode === "2p") {
+      if (k["arrowup"]) p2.y -= PADDLE_SPEED * f;
+      if (k["arrowdown"]) p2.y += PADDLE_SPEED * f;
+      clampPaddle(p2);
+    } else {
+      aiUpdate(f);
+    }
+
+    pushTrail(b.x, b.y);
+
+    const travel = (Math.abs(b.vx) > Math.abs(b.vy) ? Math.abs(b.vx) : Math.abs(b.vy)) * f;
+    const steps = travel > 4 ? Math.ceil(travel / 4) : 1;
+    const sx = b.vx * f / steps;
+    const sy = b.vy * f / steps;
+
+    for (let i = 0; i < steps; i++) {
+      b.x += sx;
+      b.y += sy;
+
+      if (b.y - BALL_R <= 0 && b.vy < 0) {
+        b.y = BALL_R;
+        b.vy = -b.vy;
+        beep(420, 0.05, 0.05);
+      } else if (b.y + BALL_R >= H && b.vy > 0) {
+        b.y = H - BALL_R;
+        b.vy = -b.vy;
+        beep(420, 0.05, 0.05);
+      }
+
+      if (b.vx < 0 && overlaps(b, p1)) {
+        bounceOffPaddle(b, p1, 1);
+        break;
+      }
+      if (b.vx > 0 && overlaps(b, p2)) {
+        bounceOffPaddle(b, p2, -1);
+        break;
+      }
+
+      if (b.x < -BALL_R * 2) {
+        state.score[1]++;
+        updateScore();
+        beep(200, 0.15, 0.1);
+        if (state.score[1] >= winScore()) { endGame(1); return; }
+        resetBall(1);
+        return;
+      }
+      if (b.x > W + BALL_R * 2) {
+        state.score[0]++;
+        updateScore();
+        beep(200, 0.15, 0.1);
+        if (state.score[0] >= winScore()) { endGame(0); return; }
+        resetBall(-1);
+        return;
+      }
+    }
+  }
+
+  function draw() {
+    ctx.drawImage(court, 0, 0);
+
+    const p1 = state.p1;
+    const p2 = state.p2;
+    ctx.drawImage(spriteP1, p1.x - SPRITE_PAD, p1.y - SPRITE_PAD, p1.w + SPRITE_PAD * 2, p1.h + SPRITE_PAD * 2);
+    ctx.drawImage(spriteP2, p2.x - SPRITE_PAD, p2.y - SPRITE_PAD, p2.w + SPRITE_PAD * 2, p2.h + SPRITE_PAD * 2);
+
+    if (state.running || state.gameOver) {
+      const n = trailCount;
+      for (let i = 0; i < n; i++) {
+        const idx = ((trailHead - (n - i) * 2) + TRAIL_MAX * 2) % (TRAIL_MAX * 2);
+        ctx.fillStyle = "rgba(255,255,255," + TRAIL_ALPHA[i] + ")";
+        ctx.beginPath();
+        ctx.arc(trailBuf[idx], trailBuf[idx + 1], BALL_R * (i / n), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const b = state.ball;
+      ctx.drawImage(spriteBall, b.x - BALL_SPRITE / 2, b.y - BALL_SPRITE / 2);
+    }
+  }
+
+  let lastT = performance.now();
+  function loop(now) {
+    const dt = now - lastT;
+    lastT = now;
+    update(dt > 0 ? dt : FRAME_MS);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener("keydown", (e) => {
+    const key = e.key.toLowerCase();
+    if (["arrowup", "arrowdown", " ", "w", "s"].includes(key)) e.preventDefault();
+    state.keys[key] = true;
+
+    if (key === "enter" && !state.running) startGame();
+    else if (key === "p") togglePause();
+    else if (key === "r") { if (state.tourney.active) startTourneyMatch(); else startGame(); }
+    else if (key === "m") {
+      state.muted = !state.muted;
+      if (!state.muted) beep(520, 0.08, 0.06);
+    }
+    else if (key === "1") setMode("cpu");
+    else if (key === "2") setMode("2p");
+    else if (key === "3") setMode("tourney");
+  });
+
+  window.addEventListener("keyup", (e) => {
+    state.keys[e.key.toLowerCase()] = false;
+  });
+
+  startBtn.addEventListener("click", () => {
+    if (state.paused) { togglePause(); return; }
+    const t = state.tourney;
+    if (t.active && (t.waiting || t.finished)) { startTourneyMatch(); return; }
+    startGame();
+  });
+
+  modeCpuBtn.addEventListener("click", () => setMode("cpu"));
+  mode2pBtn.addEventListener("click", () => setMode("2p"));
+  modeTourneyBtn.addEventListener("click", () => setMode("tourney"));
+
+  window.addEventListener("blur", () => {
+    state.keys = Object.create(null);
+    if (state.running && !state.paused && !state.gameOver) togglePause();
+  });
+
+  window.__galipong = { state, endGame, startTourneyMatch, setMode, togglePause };
+
+  loadBest();
+  applyMode();
+  updateTourneyBar();
+  resetBall(1);
+  updateScore();
+  draw();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
